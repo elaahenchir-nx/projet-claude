@@ -3,42 +3,79 @@ import { getConnection } from '../db';
 /**
  * Transfert de fonds entre deux comptes.
  *
- * BUG CONNU (Bug #4, verrou mutuel / deadlock SQL) : deux transferts
- * concurrents en sens opposé (A→B et B→A) verrouillent chacun leur ligne de
- * débit avant de tenter de verrouiller la ligne de crédit. Sous charge
- * concurrente, chaque transaction attend un verrou détenu par l'autre.
- * Symptôme : erreur SQLITE_BUSY / "database table is locked" intermittente,
- * uniquement quand deux transferts opposés se chevauchent dans le temps.
- * Logs de la base à fournir aux participants pour l'analyse (module de débogage dédié).
+ * SQLite sérialise les écrivains au niveau du fichier de base : `BEGIN
+ * IMMEDIATE` prend un verrou RESERVED global avant même de lire une ligne, et
+ * il n'existe pas de verrouillage par ligne. Deux transferts concurrents ne
+ * peuvent donc jamais s'interbloquer — le second attend, et lève SQLITE_BUSY
+ * si son `busy_timeout` expire avant que le premier ait commité. Le sens des
+ * transferts n'y joue aucun rôle : deux transferts de même sens échouent
+ * exactement pareil.
+ *
+ * D'où les trois règles tenues ici :
+ *   1. tout travail long reste HORS de la transaction ;
+ *   2. le timeout d'attente de verrou couvre largement la section critique ;
+ *   3. un retry borné absorbe la contention résiduelle.
  */
 
+/** Tentatives maximum en cas de SQLITE_BUSY. */
+const MAX_TENTATIVES = 5;
+/** Attente de base entre deux tentatives (backoff exponentiel + gigue). */
+const ATTENTE_BASE_MS = 20;
+/** Attente d'un verrou : doit couvrir la plus longue section critique. */
+const VERROU_TIMEOUT_MS = 5000;
+
+/**
+ * Contrôles métier (frais, anti-fraude, ...). Volontairement exécutés avant
+ * l'ouverture de la transaction : tant qu'ils tournent, aucun verrou n'est
+ * détenu et les autres transferts progressent.
+ */
+function executerControlesMetier(fromId: number, toId: number, amount: number): void {
+  const busyUntil = Date.now() + 300;
+  while (Date.now() < busyUntil) {
+    /* travail simulé */
+  }
+}
+
+/** Vrai si l'erreur est un conflit de verrou, donc justiciable d'un retry. */
+function estVerrouOccupe(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code;
+  return code === 'SQLITE_BUSY' || code === 'SQLITE_BUSY_SNAPSHOT' || code === 'SQLITE_LOCKED';
+}
+
+/** Pause synchrone : `transfer()` est appelé depuis un worker synchrone. */
+function attendre(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 export function transfer(fromId: number, toId: number, amount: number): void {
-  const db = getConnection(100); // timeout court : le verrou expire vite, l'erreur devient visible
+  // 1. Le travail long a lieu AVANT d'ouvrir la transaction.
+  executerControlesMetier(fromId, toId, amount);
 
-  db.prepare('BEGIN IMMEDIATE').run();
+  const db = getConnection(VERROU_TIMEOUT_MS);
   try {
-    const from = db.prepare('SELECT balance FROM accounts WHERE id = ?').get(fromId) as
-      | { balance: number }
-      | undefined;
-    if (!from || from.balance < amount) {
-      throw new Error('Solde insuffisant');
+    // 2. Section critique réduite à lecture-vérification-écriture.
+    //    db.transaction() gère lui-même BEGIN / COMMIT / ROLLBACK.
+    const appliquer = db.transaction(() => {
+      const from = db.prepare('SELECT balance FROM accounts WHERE id = ?').get(fromId) as
+        | { balance: number }
+        | undefined;
+      if (!from || from.balance < amount) {
+        throw new Error('Solde insuffisant');
+      }
+      db.prepare('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(amount, fromId);
+      db.prepare('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(amount, toId);
+    });
+
+    // 3. Retry borné. `immediate()` échoue au BEGIN plutôt qu'en cours de route.
+    for (let tentative = 1; ; tentative++) {
+      try {
+        appliquer.immediate();
+        return;
+      } catch (err) {
+        if (!estVerrouOccupe(err) || tentative === MAX_TENTATIVES) throw err;
+        attendre(ATTENTE_BASE_MS * 2 ** (tentative - 1) + Math.floor(Math.random() * 10));
+      }
     }
-
-    // Verrou pris sur le compte débité en premier...
-    db.prepare('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(amount, fromId);
-
-    // ... délai métier simulé avant de verrouiller le compte crédité
-    // (dans un vrai système : appel à un service de frais, anti-fraude, etc.)
-    const busyUntil = Date.now() + 300;
-    while (Date.now() < busyUntil) {
-      /* travail simulé */
-    }
-
-    db.prepare('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(amount, toId);
-    db.prepare('COMMIT').run();
-  } catch (err) {
-    db.prepare('ROLLBACK').run();
-    throw err;
   } finally {
     db.close();
   }
