@@ -1,14 +1,6 @@
 /**
- * Regroupement de transactions par jour.
- *
- * BUG CONNU (Bug #2, timezone) : `groupByDay` utilise
- * `toLocaleDateString()` sur des timestamps UTC, ce qui applique le fuseau
- * horaire LOCAL du serveur. Pour un serveur dans un fuseau en avance sur UTC
- * (ex: UTC+1, UTC+2 — cas de la Tunisie/Europe), une transaction de dimanche
- * tard en heure UTC (ex: 23h30 UTC un dimanche) tombe après minuit en heure
- * locale et se retrouve comptée le lundi.
- * Symptôme rapporté : « les rapports du lundi sont faux » — ils contiennent
- * en réalité des transactions de la veille.
+ * Regroupement de transactions par jour (en UTC, indépendamment du
+ * fuseau horaire du serveur).
  */
 
 export interface Transaction {
@@ -20,7 +12,7 @@ export function groupByDay(transactions: Transaction[]): Record<string, Transact
   const groups: Record<string, Transaction[]> = {};
   for (const tx of transactions) {
     const date = new Date(tx.timestampUTC);
-    const key = date.toLocaleDateString('fr-FR');
+    const key = date.toLocaleDateString('fr-FR', { timeZone: 'UTC' });
     if (!groups[key]) groups[key] = [];
     groups[key].push(tx);
   }
