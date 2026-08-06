@@ -53,20 +53,3 @@ describe('LegacyRenderer.generate - caractérisation avant refactoring', () => {
     );
   });
 });
-
-describe('LegacyRenderer.send - caractérisation avant refactoring', () => {
-  it('logue l\'annonce d\'envoi puis le contenu', () => {
-    const renderer = new LegacyRenderer();
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-
-    renderer.send('daily', 'CONTENU', 'alice@example.com');
-
-    expect(logSpy).toHaveBeenNthCalledWith(
-      1,
-      '[LegacyRenderer] Envoi du rapport daily à alice@example.com'
-    );
-    expect(logSpy).toHaveBeenNthCalledWith(2, 'CONTENU');
-
-    logSpy.mockRestore();
-  });
-});

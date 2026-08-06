@@ -41,12 +41,4 @@ export class LegacyRenderer {
     }
     return strategy.render(lines);
   }
-
-  send(type: ReportType, content: string, recipient: string): void {
-    // Simule un envoi (log) — dans un vrai système : SMTP, API, file d'attente...
-    // eslint-disable-next-line no-console
-    console.log(`[LegacyRenderer] Envoi du rapport ${type} à ${recipient}`);
-    // eslint-disable-next-line no-console
-    console.log(content);
-  }
 }
