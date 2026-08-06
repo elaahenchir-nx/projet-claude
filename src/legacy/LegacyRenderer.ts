@@ -12,7 +12,11 @@
  * de rapport, une interface commune), extraction du calcul de total.
  */
 
-import { calculateTotal, formatLines } from './reportCalculations';
+import { ReportStrategy } from './strategies/ReportStrategy';
+import { DailyReportStrategy } from './strategies/DailyReportStrategy';
+import { WeeklyReportStrategy } from './strategies/WeeklyReportStrategy';
+import { MonthlyReportStrategy } from './strategies/MonthlyReportStrategy';
+import { AnnualReportStrategy } from './strategies/AnnualReportStrategy';
 
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'annual';
 
@@ -21,45 +25,20 @@ export interface ReportLine {
   amount: number;
 }
 
+const strategies: Record<ReportType, ReportStrategy> = {
+  daily: new DailyReportStrategy(),
+  weekly: new WeeklyReportStrategy(),
+  monthly: new MonthlyReportStrategy(),
+  annual: new AnnualReportStrategy(),
+};
+
 export class LegacyRenderer {
   generate(type: ReportType, lines: ReportLine[]): string {
-    switch (type) {
-      case 'daily': {
-        const total = calculateTotal(lines);
-        return (
-          `=== RAPPORT JOURNALIER ===\n` +
-          formatLines(lines) +
-          `\nTOTAL: ${total.toFixed(2)} €`
-        );
-      }
-      case 'weekly': {
-        const total = calculateTotal(lines);
-        return (
-          `=== RAPPORT HEBDOMADAIRE ===\n` +
-          formatLines(lines) +
-          `\nTOTAL SEMAINE: ${total.toFixed(2)} €`
-        );
-      }
-      case 'monthly': {
-        const total = calculateTotal(lines);
-        const avg = lines.length ? total / lines.length : 0;
-        return (
-          `=== RAPPORT MENSUEL ===\n` +
-          formatLines(lines) +
-          `\nTOTAL: ${total.toFixed(2)} € (moyenne: ${avg.toFixed(2)} €)`
-        );
-      }
-      case 'annual': {
-        const total = calculateTotal(lines);
-        return (
-          `=== RAPPORT ANNUEL ===\n` +
-          formatLines(lines) +
-          `\nTOTAL ANNÉE: ${total.toFixed(2)} €`
-        );
-      }
-      default:
-        throw new Error(`Type de rapport inconnu: ${type}`);
+    const strategy = strategies[type];
+    if (!strategy) {
+      throw new Error(`Type de rapport inconnu: ${type}`);
     }
+    return strategy.render(lines);
   }
 
   send(type: ReportType, content: string, recipient: string): void {
