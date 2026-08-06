@@ -17,6 +17,7 @@ import { DailyReportStrategy } from './strategies/DailyReportStrategy';
 import { WeeklyReportStrategy } from './strategies/WeeklyReportStrategy';
 import { MonthlyReportStrategy } from './strategies/MonthlyReportStrategy';
 import { AnnualReportStrategy } from './strategies/AnnualReportStrategy';
+import { UnknownReportTypeError } from './errors';
 
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'annual';
 
@@ -36,7 +37,7 @@ export class LegacyRenderer {
   generate(type: ReportType, lines: ReportLine[]): string {
     const strategy = strategies[type];
     if (!strategy) {
-      throw new Error(`Type de rapport inconnu: ${type}`);
+      throw new UnknownReportTypeError(type);
     }
     return strategy.render(lines);
   }

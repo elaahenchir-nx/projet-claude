@@ -1,4 +1,5 @@
 import { LegacyRenderer, ReportLine, ReportType } from '../src/legacy/LegacyRenderer';
+import { UnknownReportTypeError } from '../src/legacy/errors';
 
 describe('LegacyRenderer.generate - caractérisation avant refactoring', () => {
   const renderer = new LegacyRenderer();
@@ -43,7 +44,10 @@ describe('LegacyRenderer.generate - caractérisation avant refactoring', () => {
     );
   });
 
-  it('lève une erreur pour un type de rapport inconnu', () => {
+  it('lève une UnknownReportTypeError pour un type de rapport inconnu', () => {
+    expect(() => renderer.generate('bogus' as ReportType, lines)).toThrow(
+      UnknownReportTypeError
+    );
     expect(() => renderer.generate('bogus' as ReportType, lines)).toThrow(
       'Type de rapport inconnu: bogus'
     );
