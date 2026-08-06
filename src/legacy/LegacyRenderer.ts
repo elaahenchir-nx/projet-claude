@@ -12,7 +12,7 @@
  * de rapport, une interface commune), extraction du calcul de total.
  */
 
-import { calculateTotal } from './reportCalculations';
+import { calculateTotal, formatLines } from './reportCalculations';
 
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'annual';
 
@@ -28,7 +28,7 @@ export class LegacyRenderer {
         const total = calculateTotal(lines);
         return (
           `=== RAPPORT JOURNALIER ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
+          formatLines(lines) +
           `\nTOTAL: ${total.toFixed(2)} €`
         );
       }
@@ -36,7 +36,7 @@ export class LegacyRenderer {
         const total = calculateTotal(lines);
         return (
           `=== RAPPORT HEBDOMADAIRE ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
+          formatLines(lines) +
           `\nTOTAL SEMAINE: ${total.toFixed(2)} €`
         );
       }
@@ -45,7 +45,7 @@ export class LegacyRenderer {
         const avg = lines.length ? total / lines.length : 0;
         return (
           `=== RAPPORT MENSUEL ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
+          formatLines(lines) +
           `\nTOTAL: ${total.toFixed(2)} € (moyenne: ${avg.toFixed(2)} €)`
         );
       }
@@ -53,7 +53,7 @@ export class LegacyRenderer {
         const total = calculateTotal(lines);
         return (
           `=== RAPPORT ANNUEL ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
+          formatLines(lines) +
           `\nTOTAL ANNÉE: ${total.toFixed(2)} €`
         );
       }
