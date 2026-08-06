@@ -1,15 +1,10 @@
 /**
- * LegacyRenderer — module legacy à refactorer (module de refactoring dédié).
+ * LegacyRenderer — refactorisé en pattern Strategy.
  *
- * Code smells volontaires :
- *  - God Class : une seule classe gère génération, formatage ET envoi.
- *  - Switch géant sur le type de rapport (violation OCP : ajouter un
- *    nouveau type de rapport impose de modifier cette classe).
- *  - Logique dupliquée entre les branches (le calcul du total est
- *    recopié quasi à l'identique dans chaque case).
- *
- * Piste de refactoring attendue : pattern Strategy (une classe par type
- * de rapport, une interface commune), extraction du calcul de total.
+ * generate() délègue à la ReportStrategy correspondant au ReportType
+ * (voir ./strategies/) ; le calcul de total et le formatage des lignes
+ * sont partagés via ./reportCalculations. L'envoi (ex-méthode send())
+ * vit désormais dans ./ReportSender.
  */
 
 import { ReportStrategy } from './strategies/ReportStrategy';
