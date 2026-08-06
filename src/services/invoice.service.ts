@@ -14,11 +14,17 @@ export interface Invoice {
 }
 
 export function calculateTTC(invoice: Invoice): number {
+  if (!Number.isFinite(invoice.amountHT) || !Number.isFinite(invoice.vatRate)) {
+    throw new TypeError(`Montant HT ou taux de TVA invalide pour la facture ${invoice.id}`);
+  }
   return Math.round(invoice.amountHT * (1 + invoice.vatRate) * 100) / 100;
 }
 
 export function isOverdue(invoice: Invoice, today: Date = new Date()): boolean {
   if (invoice.status === 'paid' || invoice.status === 'cancelled') return false;
+  if (Number.isNaN(invoice.dueDate.getTime())) {
+    throw new TypeError(`Date d'échéance invalide pour la facture ${invoice.id}`);
+  }
   return invoice.dueDate.getTime() < today.getTime();
 }
 
