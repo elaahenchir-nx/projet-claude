@@ -12,6 +12,8 @@
  * de rapport, une interface commune), extraction du calcul de total.
  */
 
+import { calculateTotal } from './reportCalculations';
+
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'annual';
 
 export interface ReportLine {
@@ -23,8 +25,7 @@ export class LegacyRenderer {
   generate(type: ReportType, lines: ReportLine[]): string {
     switch (type) {
       case 'daily': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
+        const total = calculateTotal(lines);
         return (
           `=== RAPPORT JOURNALIER ===\n` +
           lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
@@ -32,8 +33,7 @@ export class LegacyRenderer {
         );
       }
       case 'weekly': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
+        const total = calculateTotal(lines);
         return (
           `=== RAPPORT HEBDOMADAIRE ===\n` +
           lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
@@ -41,8 +41,7 @@ export class LegacyRenderer {
         );
       }
       case 'monthly': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
+        const total = calculateTotal(lines);
         const avg = lines.length ? total / lines.length : 0;
         return (
           `=== RAPPORT MENSUEL ===\n` +
@@ -51,8 +50,7 @@ export class LegacyRenderer {
         );
       }
       case 'annual': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
+        const total = calculateTotal(lines);
         return (
           `=== RAPPORT ANNUEL ===\n` +
           lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
