@@ -100,4 +100,9 @@ describe('generate', () => {
     const result = generate('[{{note}}]', ctx({ note: '' }));
     expect(result).toEqual({ text: '[]', missingVariables: [] });
   });
+
+  it('insère une valeur de contexte contenant des motifs de remplacement spéciaux ($&, $1) de façon littérale — String.replace() avec une fonction de callback ne les interprète pas', () => {
+    const result = generate('{{note}}', ctx({ note: 'Remise: $& sur $1' }));
+    expect(result).toEqual({ text: 'Remise: $& sur $1', missingVariables: [] });
+  });
 });
