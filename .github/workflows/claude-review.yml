@@ -1,0 +1,30 @@
+name: Revue automatique Claude
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Installer Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.226
+
+      - name: Generer le diff et lancer la revue
+        timeout-minutes: 5
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.TOKEN_FORMATION }}
+        run: |
+          git diff HEAD~1 HEAD -- . ':!package-lock.json' > diff-review.txt
+          if [ -s diff-review.txt ]; then
+            claude -p "Lis diff-review.txt, genere une revue de PR structuree (securite, style, risques)."
+          else
+            echo "Rien a revoir."
+          fi
