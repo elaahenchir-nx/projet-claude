@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { registerUser, login } from './services/auth.service';
-import { calculateTTC, Invoice } from './services/invoice.service';
+import { calculateTTC, isOverdue, Invoice } from './services/invoice.service';
 import { LegacyRenderer, ReportType } from './legacy/LegacyRenderer';
 import { generate as generateText } from './services/template.service';
 import { generateSynthesis, SynthesisLine } from './services/synthesis.service';
@@ -92,6 +92,20 @@ export function createApp() {
       dueDate: new Date('2026-06-01'),
     };
     res.json({ ttc: calculateTTC(invoice) });
+  });
+
+  app.get('/api/invoices/overdue', (_req, res) => {
+    const invoices: Invoice[] = [
+      { id: 'INV-001', amountHT: 1000, vatRate: 0.2, status: 'sent', dueDate: new Date('2026-06-01') },
+      { id: 'INV-002', amountHT: 500, vatRate: 0.2, status: 'paid', dueDate: new Date('2026-05-01') },
+      { id: 'INV-003', amountHT: 750, vatRate: 0.1, status: 'draft', dueDate: new Date('2026-07-01') },
+    ];
+
+    const overdueInvoices = invoices
+      .filter((invoice) => isOverdue(invoice))
+      .map((invoice) => ({ ...invoice, ttc: calculateTTC(invoice) }));
+
+    res.json({ invoices: overdueInvoices });
   });
 
   return app;

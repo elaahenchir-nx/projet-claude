@@ -1,16 +1,18 @@
 /**
- * LegacyRenderer — module legacy à refactorer (module de refactoring dédié).
+ * LegacyRenderer — refactorisé en pattern Strategy.
  *
- * Code smells volontaires :
- *  - God Class : une seule classe gère génération, formatage ET envoi.
- *  - Switch géant sur le type de rapport (violation OCP : ajouter un
- *    nouveau type de rapport impose de modifier cette classe).
- *  - Logique dupliquée entre les branches (le calcul du total est
- *    recopié quasi à l'identique dans chaque case).
- *
- * Piste de refactoring attendue : pattern Strategy (une classe par type
- * de rapport, une interface commune), extraction du calcul de total.
+ * generate() délègue à la ReportStrategy correspondant au ReportType
+ * (voir ./strategies/) ; le calcul de total et le formatage des lignes
+ * sont partagés via ./reportCalculations. L'envoi (ex-méthode send())
+ * vit désormais dans ./ReportSender.
  */
+
+import { ReportStrategy } from './strategies/ReportStrategy';
+import { DailyReportStrategy } from './strategies/DailyReportStrategy';
+import { WeeklyReportStrategy } from './strategies/WeeklyReportStrategy';
+import { MonthlyReportStrategy } from './strategies/MonthlyReportStrategy';
+import { AnnualReportStrategy } from './strategies/AnnualReportStrategy';
+import { UnknownReportTypeError } from './errors';
 
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'annual';
 
@@ -19,56 +21,19 @@ export interface ReportLine {
   amount: number;
 }
 
+const strategies: Record<ReportType, ReportStrategy> = {
+  daily: new DailyReportStrategy(),
+  weekly: new WeeklyReportStrategy(),
+  monthly: new MonthlyReportStrategy(),
+  annual: new AnnualReportStrategy(),
+};
+
 export class LegacyRenderer {
   generate(type: ReportType, lines: ReportLine[]): string {
-    switch (type) {
-      case 'daily': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
-        return (
-          `=== RAPPORT JOURNALIER ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
-          `\nTOTAL: ${total.toFixed(2)} €`
-        );
-      }
-      case 'weekly': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
-        return (
-          `=== RAPPORT HEBDOMADAIRE ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
-          `\nTOTAL SEMAINE: ${total.toFixed(2)} €`
-        );
-      }
-      case 'monthly': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
-        const avg = lines.length ? total / lines.length : 0;
-        return (
-          `=== RAPPORT MENSUEL ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
-          `\nTOTAL: ${total.toFixed(2)} € (moyenne: ${avg.toFixed(2)} €)`
-        );
-      }
-      case 'annual': {
-        let total = 0;
-        for (const l of lines) total += l.amount;
-        return (
-          `=== RAPPORT ANNUEL ===\n` +
-          lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join('\n') +
-          `\nTOTAL ANNÉE: ${total.toFixed(2)} €`
-        );
-      }
-      default:
-        throw new Error(`Type de rapport inconnu: ${type}`);
+    const strategy = strategies[type];
+    if (!strategy) {
+      throw new UnknownReportTypeError(type);
     }
-  }
-
-  send(type: ReportType, content: string, recipient: string): void {
-    // Simule un envoi (log) — dans un vrai système : SMTP, API, file d'attente...
-    // eslint-disable-next-line no-console
-    console.log(`[LegacyRenderer] Envoi du rapport ${type} à ${recipient}`);
-    // eslint-disable-next-line no-console
-    console.log(content);
+    return strategy.render(lines);
   }
 }
