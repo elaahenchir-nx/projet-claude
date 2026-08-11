@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 20
       - name: Installer Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.226
 
       - name: Diagnostiquer l'issue et commenter automatiquement
         env:
