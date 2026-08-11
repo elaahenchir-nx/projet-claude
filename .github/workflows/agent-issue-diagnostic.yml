@@ -1,0 +1,32 @@
+name: Agent - Diagnostic Issue
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installer Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Diagnostiquer l'issue et commenter automatiquement
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.TOKEN_FORMATION }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          echo "$ISSUE_BODY" > .issue-body.tmp
+          DIAGNOSTIC=$(claude -p "Lis le fichier .issue-body.tmp a la racine du projet. C'est le contenu d'une issue GitHub intitulee : $ISSUE_TITLE. Si c'est un bug technique, formule une hypothese sur la cause probable en te basant sur le code du depot. Sinon, resume la demande en une phrase. Reste concis (5 lignes maximum).")
+          rm .issue-body.tmp
+          gh issue comment "$ISSUE_NUMBER" --body "$DIAGNOSTIC"
